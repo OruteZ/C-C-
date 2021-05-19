@@ -1,3 +1,4 @@
+
 #include<stdio.h>
 #include<conio.h>
 #include<stdlib.h>
@@ -6,19 +7,22 @@
 #include<math.h>
 
 
-//¸ÊÀÇ ÁÂÇ¥¹üÀ§´Â 1ºÎÅÍ »ó¼ö°ª±îÁö
-// º®Àº ÁÂÇ¥»ó 0°ú ÃÖ´ñ°ª + 1¿¡ Á¸ÀçÇÔ
+
+//ë§µì˜ ì¢Œí‘œë²”ìœ„ëŠ” 1ë¶€í„° ìƒìˆ˜ê°’ê¹Œì§€
+// ë²½ì€ ì¢Œí‘œìƒ 0ê³¼ ìµœëŒ“ê°’ + 1ì— ì¡´ì¬í•¨
 const int map_height = 50;
 const int map_width = 230;
 const int refrashRate = 50;
 const int camera_height_range = 15;
 const int camera_width_range = 50;
+const int clearX = 220;
+const int clearY = 10;
 
 typedef enum {
-    PLAYER, MONSTER
+    PLAYER, MONSTER, STAR
 } UNIT_TYPE;
 
-//Ä¿¼­ Á¦°Å¿ë ÄÚµå
+//ì»¤ì„œ ì œê±°ìš© ì½”ë“œ
 typedef enum {
     NOCURSOR, SOLIDCURSOR, NORMALCURSOR
 } CURSOR_TYPE;
@@ -43,8 +47,8 @@ void setcursortype(CURSOR_TYPE c) {
 
 
 
-//Àå¾Ö¹°, ¸ó½ºÅÍ, ÇÃ·¹ÀÌ¾î°¡ °øÅëÀûÀ¸·Î °®´Â ÀÚ·áÇü unit ¼±¾ğ
-//°¢ À¯´ÖÀÇ ÁÂÇ¥, ¿ÜÇü
+//ì¥ì• ë¬¼, ëª¬ìŠ¤í„°, í”Œë ˆì´ì–´ê°€ ê³µí†µì ìœ¼ë¡œ ê°–ëŠ” ìë£Œí˜• unit ì„ ì–¸
+//ê° ìœ ë‹›ì˜ ì¢Œí‘œ, ì™¸í˜•
 struct unit {
     int x;
     int y;
@@ -54,8 +58,8 @@ struct unit {
     UNIT_TYPE type;
 };
 
-//Ä«¸Ş¶ó È¥ÀÚ¸¸ °®´Â ÀÚ·áÇü camera ¼±¾ğ
-//Ä«¸Ş¶óÀÇ xÁÂÇ¥, yÁÂÇ¥, º®ÀÇ »óÇÏÁÂ¿ì ¿©ºÎ
+//ì¹´ë©”ë¼ í˜¼ìë§Œ ê°–ëŠ” ìë£Œí˜• camera ì„ ì–¸
+//ì¹´ë©”ë¼ì˜ xì¢Œí‘œ, yì¢Œí‘œ, ë²½ì˜ ìƒí•˜ì¢Œìš° ì—¬ë¶€
 struct camera {
     int x = 0;
     int y = 0;
@@ -63,30 +67,30 @@ struct camera {
     char wallUD = 'N';
 }Camera;
 
-//ÀÔ·Â ÁÂÇ¥¸¦ x,y·Î ÀÌµ¿½ÃÅ°´Â ÇÔ¼ö
+//ì…ë ¥ ì¢Œí‘œë¥¼ x,yë¡œ ì´ë™ì‹œí‚¤ëŠ” í•¨ìˆ˜
 void gotoxy(int x, int y)
 {
     COORD CursorPosition = { x, y };
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), CursorPosition);
 }
 
-//Ä«¸Ş¶óÀÇ Áß½É¿¡ µû¶ó ÁÖº¯ È¯°æÀ» Ãâ·ÂÇÏ´Â ÇÔ¼ö
-//Ä«¸Ş¶ó¸¦ returnÇÔ
+//ì¹´ë©”ë¼ì˜ ì¤‘ì‹¬ì— ë”°ë¼ ì£¼ë³€ í™˜ê²½ì„ ì¶œë ¥í•˜ëŠ” í•¨ìˆ˜
+//ì¹´ë©”ë¼ë¥¼ returní•¨
 camera cameraSet(unit* units, camera Camera, int NumUnit)
 {
     int i;
-    //ÇÃ·¹ÀÌ¾îÀÇ ÁÂÇ¥¸¦ Ä«¸Ş¶óÀÇ ÁÂÇ¥¿¡ ´ëÀÔ
+    //í”Œë ˆì´ì–´ì˜ ì¢Œí‘œë¥¼ ì¹´ë©”ë¼ì˜ ì¢Œí‘œì— ëŒ€ì…
     Camera.x = units->x;
     Camera.y = units->y;
 
 
-    //¸Ê ¾ç³¡¿¡ µµ´ŞÇßÀ» °æ¿ì Ä«¸Ş¶ó°¡ ´õÀÌ»ó ÀÌµ¿ÇÏÁö¾Êµµ·Ï ÁÂÇ¥¸¦ °íÁ¤ÇÏ°í, WallRL º¯¼ö¸¦ ¼³Á¤ÇÏ´Â ÄÚµå
-    //ÀÌÀü WallRL°ú ´Ù¸¦°æ¿ì¿¡¸¸ º®À» Áö¿ò
-    //xÁÂÇ¥°¡ Ä«¸Ş¶ó ¹üÀ§º¸´Ù ÀÛÀ»°æ¿ì ¿ŞÂÊ¿¡ º®ÀÌÀÖ´Ù´Â ¶æ
+    //ë§µ ì–‘ëì— ë„ë‹¬í–ˆì„ ê²½ìš° ì¹´ë©”ë¼ê°€ ë”ì´ìƒ ì´ë™í•˜ì§€ì•Šë„ë¡ ì¢Œí‘œë¥¼ ê³ ì •í•˜ê³ , WallRL ë³€ìˆ˜ë¥¼ ì„¤ì •í•˜ëŠ” ì½”ë“œ
+    //ì´ì „ WallRLê³¼ ë‹¤ë¥¼ê²½ìš°ì—ë§Œ ë²½ì„ ì§€ì›€
+    //xì¢Œí‘œê°€ ì¹´ë©”ë¼ ë²”ìœ„ë³´ë‹¤ ì‘ì„ê²½ìš° ì™¼ìª½ì— ë²½ì´ìˆë‹¤ëŠ” ëœ»
     if (Camera.x <= camera_width_range)
     {
         Camera.x = camera_width_range;
-        //if¹® : ÀÌÀü¿¡ ¿À¸¥ÂÊ¿¡ º®ÀÌ ÀÛ¼ºµÇ¾îÀÖ¾úÀ» °æ¿ì Áö¿î´Ù
+        //ifë¬¸ : ì´ì „ì— ì˜¤ë¥¸ìª½ì— ë²½ì´ ì‘ì„±ë˜ì–´ìˆì—ˆì„ ê²½ìš° ì§€ìš´ë‹¤
         if (Camera.wallRL == 'R') {
             for (i = 0; i < camera_height_range * 2; i++)
             {
@@ -127,13 +131,13 @@ camera cameraSet(unit* units, camera Camera, int NumUnit)
         }
         Camera.wallRL = 'N';
     }
-    //¸Ê À§¾Æ·¡¿¡ µµ´ŞÇßÀ» °æ¿ì Ä«¸Ş¶ó°¡ ´õÀÌ»ó ÀÌµ¿ÇÏÁö¾Êµµ·Ï ÁÂÇ¥¸¦ °íÁ¤ÇÏ°í, WallUD º¯¼ö¸¦ ¼³Á¤ÇÏ´Â ÄÚµå
-    // //ÀÌÀü WallUD°ú ´Ù¸¦°æ¿ì¿¡¸¸ º®À» Áö¿ò
-    //yÁÂÇ¥°¡ Ä«¸Ş¶ó ¹üÀ§º¸´Ù ÀÛÀ»°æ¿ì À§ÂÊ¿¡ º®ÀÌ ÀÖ´Ù´Â ¶æ
+    //ë§µ ìœ„ì•„ë˜ì— ë„ë‹¬í–ˆì„ ê²½ìš° ì¹´ë©”ë¼ê°€ ë”ì´ìƒ ì´ë™í•˜ì§€ì•Šë„ë¡ ì¢Œí‘œë¥¼ ê³ ì •í•˜ê³ , WallUD ë³€ìˆ˜ë¥¼ ì„¤ì •í•˜ëŠ” ì½”ë“œ
+    // //ì´ì „ WallUDê³¼ ë‹¤ë¥¼ê²½ìš°ì—ë§Œ ë²½ì„ ì§€ì›€
+    //yì¢Œí‘œê°€ ì¹´ë©”ë¼ ë²”ìœ„ë³´ë‹¤ ì‘ì„ê²½ìš° ìœ„ìª½ì— ë²½ì´ ìˆë‹¤ëŠ” ëœ»
     if (Camera.y <= camera_height_range)
     {
         Camera.y = camera_height_range;
-        //if¹® : ÀÌÀü¿¡ ¾Æ·¡ÂÊ¿¡ º®ÀÌ ÀÛ¼ºµÇ¾îÀÖ¾úÀ» °æ¿ì Áö¿î´Ù
+        //ifë¬¸ : ì´ì „ì— ì•„ë˜ìª½ì— ë²½ì´ ì‘ì„±ë˜ì–´ìˆì—ˆì„ ê²½ìš° ì§€ìš´ë‹¤
         if (Camera.wallUD == 'D') {
             for (i = 0; i < camera_width_range * 2 + 1; i++)
             {
@@ -174,9 +178,9 @@ camera cameraSet(unit* units, camera Camera, int NumUnit)
         }
         Camera.wallUD = 'N';
     }
-    //units¿¡ ÀúÀåµÈ °¢ À¯´ÖµéÀ» ¸ğµÎ ÂüÁ¶ÇÏ¿© Ä«¸Ş¶óÀÇ ¹üÀ§ ³»·Î ÇØ´çµÇ´Â À¯´ÖÀ» ¼±ÅÃÇÏ¿©, È­¸é ³»¿¡ Ãâ·ÂÇÏ´Â ÄÚµå
-    //Ä«¸Ş¶ó ÁÂÇ¥¿¡ ´ëÇÑ °¢ À¯´ÖÀÇ »ó´ëÁÂÇ¥¸¦ ±¸ÇÏ°í »ó´ëÁÂÇ¥°¡ º¯È­ÇßÀ» ½Ã¿¡¸¸ »èÁ¦ÈÄ Àç Ãâ·ÂÇÑ´Ù
-    //»ó´ëÁÂÇ¥°¡
+    //unitsì— ì €ì¥ëœ ê° ìœ ë‹›ë“¤ì„ ëª¨ë‘ ì°¸ì¡°í•˜ì—¬ ì¹´ë©”ë¼ì˜ ë²”ìœ„ ë‚´ë¡œ í•´ë‹¹ë˜ëŠ” ìœ ë‹›ì„ ì„ íƒí•˜ì—¬, í™”ë©´ ë‚´ì— ì¶œë ¥í•˜ëŠ” ì½”ë“œ
+    //ì¹´ë©”ë¼ ì¢Œí‘œì— ëŒ€í•œ ê° ìœ ë‹›ì˜ ìƒëŒ€ì¢Œí‘œë¥¼ êµ¬í•˜ê³  ìƒëŒ€ì¢Œí‘œê°€ ë³€í™”í–ˆì„ ì‹œì—ë§Œ ì‚­ì œí›„ ì¬ ì¶œë ¥í•œë‹¤
+    //ìƒëŒ€ì¢Œí‘œê°€
     for (i = 0; i < NumUnit; i++)
     {
         unit Unit = *(units + i);
@@ -207,7 +211,7 @@ camera cameraSet(unit* units, camera Camera, int NumUnit)
     }
 
 
-    //ÀúÀåµÈ WallUD¿Í WallRL¿¡ µû¶ó¼­ º®À» ÀÛ¼ºÇÏ´Â ÄÚµå
+    //ì €ì¥ëœ WallUDì™€ WallRLì— ë”°ë¼ì„œ ë²½ì„ ì‘ì„±í•˜ëŠ” ì½”ë“œ
     if (Camera.wallUD == 'D') {
         for (i = 0; i < camera_width_range * 2 + 1; i++)
         {
@@ -240,7 +244,18 @@ camera cameraSet(unit* units, camera Camera, int NumUnit)
     return Camera;
 }
 
-//ÇÃ·¹ÀÌ¾îÀÇ ÀÌµ¿À» À§ÇØ¼­ wasd¸¦ ÀÔ·Â¹Ş´Â ÇÔ¼ö, ÀÌ¿Ü ÀÔ·Â¹ŞÀ¸¸é NULL Ãâ·Â
+void clearScreen()
+{
+    for (int i = 0; i <= camera_width_range * 2 + 1; i++)
+    {
+        for (int j = 0; j <= camera_height_range * 2; j++)
+        {
+            gotoxy(i, j);
+            printf(" ");
+        }
+    }
+}
+//í”Œë ˆì´ì–´ì˜ ì´ë™ì„ ìœ„í•´ì„œ wasdë¥¼ ì…ë ¥ë°›ëŠ” í•¨ìˆ˜, ì´ì™¸ ì…ë ¥ë°›ìœ¼ë©´ NULL ì¶œë ¥
 char getKey()
 {
     if (_kbhit()) {
@@ -249,13 +264,13 @@ char getKey()
     return NULL;
 }
 
-//Áß·Â¿¡ µû¶ó ÇÃ·¹ÀÌ¾î ÀÌµ¿½ÃÅ°´Â ÇÔ¼ö
+//ì¤‘ë ¥ì— ë”°ë¼ í”Œë ˆì´ì–´ ì´ë™ì‹œí‚¤ëŠ” í•¨ìˆ˜
 void gravityMoving(unit* unit)
 {
     if (unit->y < map_height) unit->y++;
 }
 
-//wasdÀÔ·Â¹Ş¾Æ¼­ ÇÃ·¹ÀÌ¾îÀÇ ÁÂÇ¥¸¦ ÀÌµ¿½ÃÅ°´Â ÇÔ¼ö
+//wasdì…ë ¥ë°›ì•„ì„œ í”Œë ˆì´ì–´ì˜ ì¢Œí‘œë¥¼ ì´ë™ì‹œí‚¤ëŠ” í•¨ìˆ˜
 void playerMoving(unit* player)
 {
     char cSelect = '\0';
@@ -285,39 +300,27 @@ void playerMoving(unit* player)
     }
 }
 
-//Á¤ÇØÁø AI¿¡ µû¶ó ¸ó½ºÅÍ°¡ ÀÌµ¿ÇÏ´Â ÇÔ¼ö
+//ì •í•´ì§„ AIì— ë”°ë¼ ëª¬ìŠ¤í„°ê°€ ì´ë™í•˜ëŠ” í•¨ìˆ˜
 void monsterMoving(unit* units, int NumUnit)
 {
+    unit* player = units;
+    unit* monster = units;
+    int distanceX;
+    int distanceY;
     for (int i = 1; i < NumUnit; i++)
     {
-        unit* monster = units + i;
+        monster = units + i;
         if (monster->type == MONSTER)
         {
-            int random = rand() % 4;
-            switch (random)
-            {
-            case 0:
-                if (monster->x < map_width)
-                    (monster->x)++;
-                break;
-            case 1:
-                if (monster->y < map_height)
-                    (monster->y)++;
-                break;
-            case 2:
-                if (monster->x > 1)
-                    (monster->x)--;
-                break;
-            case 3:
-                if (monster->y > 1)
-                    (monster->y)--;
-                break;
-            }
+            distanceX = (monster->x) - (player->x);
+            distanceY = (monster->y) - (player->y);
+            if (distanceX != 0) monster->x -= distanceX / abs(distanceX);
+            if (distanceY != 0) monster->y -= distanceY / abs(distanceY);
         }
     }
 }
 
-//»õ·Î¿îÀ¯´ÖÀ» Ãß°¡ÇÏ´Â ÇÔ¼ö. ÇÃ·¹ÀÌ¾î ¶Ç´Â ¸ó½ºÅÍ
+//ìƒˆë¡œìš´ìœ ë‹›ì„ ì¶”ê°€í•˜ëŠ” í•¨ìˆ˜. í”Œë ˆì´ì–´ ë˜ëŠ” ëª¬ìŠ¤í„°
 void addnewUnit(int* PNumUnit, int X, int Y, char Look, UNIT_TYPE type, unit* units)
 {
     (*PNumUnit)++;
@@ -330,12 +333,50 @@ void addnewUnit(int* PNumUnit, int X, int Y, char Look, UNIT_TYPE type, unit* un
     (units + t)->type = type;
 }
 
-int main() {
-    int NumUnit = 0;
-    setcursortype(NOCURSOR);
-    unit* units = (unit*)malloc(sizeof(unit) * 30);
+int mainmenu()
+{
+    gotoxy(camera_width_range / 2 - 3, camera_height_range / 4);
+    printf("1. ê²Œì„ ì‹œì‘");
+    gotoxy(camera_width_range / 2 - 3, camera_height_range * 2 / 4);
+    printf("2. ê²Œì„ ì¢…ë£Œ");
+    gotoxy(camera_width_range / 2 - 3, camera_height_range * 3 / 4);
+    printf("ìˆ«ìí‚¤ë¥¼ ì…ë ¥í•˜ì„¸ìš”");
+    char cSelect = '\0';
+    while (1)
+    {
+        cSelect = getKey();
+        switch (cSelect)
+        {
+        case '1':
+            return 1;
+        case '2':
+            return 2;
+        }
+    }
+}
 
+int Check(int NumUnit, unit* units)
+{
+    unit* monster = units;
+    int playerX = units->x;
+    int playerY = units->y;
+
+    if (clearX == playerX && clearY == playerY) return 1;
+    for (int i = 2; i < NumUnit; i++)
+    {
+        monster = units + i;
+        if (monster->x == playerX && monster->y == playerY) return 2;
+    }
+    return 0;
+}
+
+int playgame()
+{
+    int NumUnit = 0;
+    unit* units = (unit*)malloc(sizeof(unit) * 30);
+    int clear = 0; // 0 ì§„í–‰ì¤‘ 1 íƒˆë½ 2 í´ë¦¬ì–´
     addnewUnit(&NumUnit, 1, map_height, 'K', PLAYER, units);
+    addnewUnit(&NumUnit, clearX, clearY, '*', STAR, units);
     addnewUnit(&NumUnit, 20, map_height, 'M', MONSTER, units);
     addnewUnit(&NumUnit, 40, map_height, 'M', MONSTER, units);
     addnewUnit(&NumUnit, 60, map_height, 'M', MONSTER, units);
@@ -362,16 +403,55 @@ int main() {
     while (1)
     {
         playerMoving(units);
-        if ((cnt % refrashRate) == 0) monsterMoving(units, NumUnit);
-        if (cnt % (refrashRate / 2) == 0) gravityMoving(units);
+        if (cnt % (refrashRate / 5) == 0) monsterMoving(units, NumUnit);
+        //if (cnt % (refrashRate/2)== 0) gravityMoving(units);
         Camera = cameraSet(units, Camera, NumUnit);
+        clear = Check(NumUnit, units);
+        if (clear != 0)
+        {
+            if (clear == 2)
+            {
+                gotoxy(camera_width_range - 10, camera_height_range);
+                printf("í´ë¦¬ì–´ë¥¼ ì¶•í•˜ë“œë¦½ë‹ˆë‹¤!");
+                break;
+            }
+            else
+            {
+                break;
+            }
+        }
         cnt++;
-        gotoxy(1, 1);
-        printf("%d", cnt);
+        //gotoxy(0, 12);
+        //printf("%d\n", cnt);
         //gotoxy(40, 10);
-        //printf("¾È³»Ã¢");
+        //printf("ì•ˆë‚´ì°½");
         Sleep(1000 / refrashRate);
     }
     free(units);
+    return clear;
+}
+
+int main() {
+    setcursortype(NOCURSOR);
+    int selection, clear;
+    while (1)
+    {
+        selection = mainmenu();
+        clearScreen();
+        if (selection == 1) clear = playgame();
+        else break;
+
+        clearScreen();
+        if (clear == 1)
+        {
+            gotoxy(camera_width_range - 4, 0);
+            printf("í´ë¦¬ì–´ í–ˆìŠµë‹ˆë‹¤");
+        }
+        else
+        {
+            gotoxy(camera_width_range - 3, 0);
+            printf("ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤");
+        }
+    }
     return 0;
 }
